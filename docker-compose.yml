@@ -1,0 +1,38 @@
+# Specifies the Docker Compose API version to use
+version: '3.8'
+
+# Defines the different containers (services) we want to run
+services:
+  # The core database service for our FinTech Vault
+  postgres_vault:
+    # Uses the official, lightweight Alpine Linux version of PostgreSQL 15 to keep the container fast
+    image: postgres:15-alpine
+    
+    # Assigns a specific name to the container so it is easy to find and manage in your terminal
+    container_name: fintech_pg_instance
+    
+    # Maps the container's internal port (5432) to your local machine's port (5432)
+    # This is what allows client tools like DBeaver or pgAdmin to connect to the database later
+    ports:
+      - "5433:5432"
+    
+    # Pulls the secure master credentials dynamically from the file we just created
+    env_file:
+      - .env
+    
+    # Mounts local directories into the container's file system
+    volumes:
+      # Maps our local 'init_scripts' folder to Docker's special initialization directory
+      # PostgreSQL will automatically execute any .sql files found here the very first time it boots up
+      - ./init_scripts:/docker-entrypoint-initdb.d/
+      
+      # Persists the database data locally using a named Docker volume
+      # This ensures that if the container shuts down or restarts, your financial data is not destroyed
+      - pg_data:/var/lib/postgresql/data
+    
+    # Ensures the container automatically restarts if it crashes or your computer reboots
+    restart: unless-stopped
+
+# Declares the named volume referenced above for persistent storage
+volumes:
+  pg_data:
