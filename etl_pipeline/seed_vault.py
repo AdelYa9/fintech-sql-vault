@@ -71,6 +71,13 @@ cur.execute("SELECT account_id FROM dim_accounts;")
 # Extract the account IDs into a flat list
 account_ids = [row[0] for row in cur.fetchall()]
 
+# ---> THREAT HUNT INJECTION: CREATE GHOST ACCOUNT <---
+print("Injecting Ghost Account for Salami Attack...")
+cur.execute("INSERT INTO dim_customers (full_name, email, risk_tier) VALUES ('System Daemon', 'daemon@internal.net', 'Low') RETURNING customer_id;")
+ghost_customer_id = cur.fetchone()[0]
+cur.execute("INSERT INTO dim_accounts (customer_id, account_type, is_active, opened_date) VALUES (%s, 'Checking', True, %s) RETURNING account_id;", (ghost_customer_id, date.today()))
+ghost_account_id = cur.fetchone()[0]
+
 # ---------------------------------------------------------
 # 2. GENERATE DATE DIMENSION (Time Intelligence Calendar)
 # ---------------------------------------------------------
@@ -120,24 +127,29 @@ date_ids = [row[0] for row in cur.fetchall()]
 # ---------------------------------------------------------
 
 # Print a status message for the final transaction generation
-print("Generating 10,000 Financial Transactions...")
+print("Generating 10,000 Financial Transactions with Hidden Anomaly...")
 # Initialize an empty list to hold the massive transaction dataset
 transactions = []
 # Create an empty dictionary to keep a running track of the current balance for each account ID
 running_balances = {}
 
-# Loop 10,000 times to generate a robust dataset for Business Intelligence testing
-for _ in range(10000):
-    # Randomly select one valid account ID from our generated list
-    acct_id = random.choice(account_ids)
+# Loop 10,000 times, using 'i' to track the exact iteration number (starting at 1)
+for i in range(1, 10001):
+    
+    # ---> THREAT HUNT INJECTION: SALAMI SLICING TRIGGER <---
+    if i % 500 == 0:
+        acct_id = ghost_account_id
+        t_type = 'Withdrawal'
+        amount = 0.02
+    else:
+        acct_id = random.choice(account_ids)
+        t_type = random.choice(['Deposit', 'Withdrawal', 'Transfer'])
+        amount = round(random.uniform(10.0, 5000.0), 2)
+        
     # Randomly select one valid branch ID from our generated list
     b_id = random.choice(branch_ids)
     # Randomly select one valid date ID from our generated calendar list
     d_id = random.choice(date_ids)
-    # Randomly determine the type of financial movement
-    t_type = random.choice(['Deposit', 'Withdrawal', 'Transfer'])
-    # Generate a random transaction amount between $10.00 and $5,000.00, rounded to two decimal places
-    amount = round(random.uniform(10.0, 5000.0), 2)
     
     # Retrieve the current balance for this specific account, defaulting to 0.0 if it has no history yet
     current_balance = running_balances.get(acct_id, 0.0)
@@ -171,4 +183,4 @@ cur.close()
 conn.close()
 
 # Print a final success message indicating the ETL run is complete
-print("Data Seeding Complete! The Vault is full.")
+print("Data Seeding Complete! The Vault is full, and the trap is set.")
